@@ -1,3 +1,14 @@
+## [0.1.1] - 2019-12-16
+
+## Added
+- Better instructions in the README on 3rd-party dependencies, generics. 
+
+## Changed 
+- Created a macro and variable set to prevent as much copy/paste in the stencil. 
+
+## Fixed 
+- Custom defined dependencies benefit from overriding in tests. 
+
 ## [0.1.0] - 2019-12-02
 
 ## Added

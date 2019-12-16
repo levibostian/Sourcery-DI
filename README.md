@@ -90,6 +90,26 @@ class ViewController: UIViewController {
 }
 ```
 
+### Define a generic class
+
+If you have a generic class:
+
+```swift
+// sourcery: InjectRegister = "Bar"
+class Car<EngineType: Engine> { 
+}
+```
+
+...the Sourcery DI graph has issues with (1) generating this and (2) overriding this within tests. 
+
+To fix this problem, it's recommended to create a `typealias` to define a more concrete type definition that can then work nicely with the graph:
+
+```swift
+typealias ElectricCar = Car<ElectricEngine>
+```
+
+Now, read the instructions in this readme on defining a `typealias` in the graph. 
+
 ### Define a class as a singleton dependency
 
 *Note: The instructions below are for using a Swift `class`. If your dependency is something other then a `class`, skip this section.*
@@ -111,13 +131,19 @@ let otherInstanceWheels = Di.shared.inject(.offRoadWheels)
 // `wheels` and `otherInstanceWheels` are the same instance
 ```
 
-### Define a custom dependency 
+### Define a `typealias` or 3rd party dependency 
 
 If you need to add a dependency to your graph that is not a class, or, you need to inject some 3rd party code that you didn't write such as `UserDefaults`, here is how you will do so:
+
+*Note: If you need your custom dependency to be a singleton, that is up to you to perform. View the generated DI graph to see examples of how this stencil creates singletons.*
+
+##### 3rd party dependencies 
 
 ```swift
 // sourcery: InjectRegister = "UserDefaults"
 // sourcery: InjectCustom
+extension UserDefaults {}
+
 extension DI {
     var userDefaults: UserDefaults {
         return UserDefaults.standard
@@ -125,8 +151,116 @@ extension DI {
 }
 ```
 
-*Note: You must define 1 dependency for every `extension DI` definition. This is the way that Sourcery works.*
-*Note: If you need your custom dependency to be a singleton, that is up to you to perform.*
+When you define 3rd party dependencies, you may encounter build errors when trying to compile your app because the generated DI graph cannot find a module. You can fix this issue in multiple ways. 
+
+1. The quick way. 
+
+Open up the `AutoDependencyInjection.stencil` file you copied into your project and add another `import` statement to the file:
+
+```
+import Foundation
+import KeychainAccess
+import Moya
+```
+
+Import whatever frameworks you need. 
+
+Pros: 
+* Quick and easy. 1 line of code. 
+Cons:
+* The next time there is an update to the stencil file in this project, you need to remember what frameworks you added. 
+
+2. `typealias`
+
+Create `typealias` definitions to alias the 3rd party definitions. 
+
+For example, if you wanted to use the [KeychainAccess](https://github.com/kishikawakatsumi/KeychainAccess) framework in your app, you could create this dependency on a `KeychainAccess` instance:
+
+```swift
+import KeychainAccess
+
+// sourcery: InjectRegister = "KeychainAccess"
+// sourcery: InjectCustom
+extension KeychainAccess {}
+
+extension DI {
+    var keychainAccess: KeychainAccess {
+        return Keychain(service: "com.example.github-token")
+    }
+}
+```
+
+If you don't want to need to add an `import` statement to the stencil file, you can create a typealias for `KeychainAccess`:
+
+```swift
+import KeychainAccess
+
+typealias Keychain = KeychainAccess
+// sourcery: InjectRegister = "Keychain"
+// sourcery: InjectCustom
+extension Keychain {}
+
+extension DI {
+    var keychain: Keychain {
+        return Keychain(service: "com.example.github-token")
+    }
+}
+```
+
+Pros: 
+* Separation between code and the Sourcery stencils. No need to maintain the list of import statements in the stencil file.
+Cons:
+* More code required to create a `typealias`. 
+* If you decide in the future to no longer use the `KeychainAccess` framework, it would require you to edit lots of your code. 
+
+3. Wrapper 
+
+If you wanted to make your code even more maintainable long-term and making your code more testable, you could also create a wrapper:
+
+```swift
+// sourcery: InjectRegister = "Keychain"
+protocol Keychain {
+    func set(_ key: String, value: String)
+    func get(_ key: String) -> String?
+}
+
+import KeychainAccess
+class KeychainAccessKeychain: Keychain {
+    // .. impl
+}
+
+// Use the protocol
+class ViewModel {
+    init(keychain: Keychain) {        
+    }
+}
+```
+
+Pros: 
+* More testable code since it's uses the abstraction of a protocol. 
+* More maintainable code long-term. 
+* No need to mess with the Sourcery stencil. 
+Cons:
+* Requires the most boilerplate code. 
+
+##### `typealias`
+
+Typealias are a great way to define dependencies that are *generic*. 
+
+```swift
+typealias GitHubMoyaProvider = MoyaProvider<GitHubService>
+// sourcery: InjectRegister = "GitHubMoyaProvider"
+// sourcery: InjectCustom
+extension GitHubMoyaProvider {}
+
+extension DI {
+    var gitHubMoyaProvider: GitHubMoyaProvider {        
+        return MoyaProvider<GitHubService>()
+    }
+}
+```
+
+*Note: Yes, you need to have the blank `extension` as defined above. It's a hack in order to [have Sourcery find your `typealias` annotations](https://github.com/krzysztofzablocki/Sourcery/issues/765). We may not need this in the future. Who knows.*
 
 ## Author
 
