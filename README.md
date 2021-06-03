@@ -1,35 +1,28 @@
 # Sourcery-DI
 
-Automated iOS dependency injection through [Sourcery](https://github.com/krzysztofzablocki/Sourcery). 
+Automatically generate a dependency injection graph for your source code. No frameworks needed. 
 
-## What is Sourcery-DI
+## How? 
 
-A pre-made stencil template you can use with the [Sourcery](https://github.com/krzysztofzablocki/Sourcery) tool to generate a dependency graph for your iOS app. 
+There is this really neat tool called [Sourcery](https://github.com/krzysztofzablocki/Sourcery). It is really good at generating boilerplate Swift code for your project. Things that iOS developers usually do my hand (creating mocks of classes, creating a dependency injection graph) can be automated for you. 
 
-## Why use Sourcery-DI?
+Sourcery does this with the Sourcery CLI tool and [Stencil template files](https://stencil.fuller.li/en/latest/). This project houses a Stencil template file you can use in your project with Sourcery to automatically generate a dependency injection graph for your code. 
 
-* **Zero dependencies.** You just need Sourcery (which is a compile time tool, not runtime). 
-* **Testing friendly.** Override dependencies in your graph with mocked/stubbed versions for your tests. 
-* **Fast.** The dependency graph generated is simply a collection of constructors and lazy loading properties. 
+## Why use this project?
 
-## Goals of Sourcery-DI
+* **Zero dependencies.** You just need Sourcery (which is a compile time tool, not runtime) to use this project. 
+* **Testing friendly.** Override dependencies in your graph with mocked/stubbed versions for your tests. That's why your using dependency injection, yeah? 
+* **Fast.** The dependency graph generated is simply a collection of constructors and lazy loading properties. No need to initialize the graph. 
+* **Flexible.** Add all your code's dependencies no matter if they are singletons or 3rd party library classes. 
+* **Thread safe.** Get dependencies from any thread, safely. 
 
-This project strives to stay true to these promises:
-
-1. Zero dependencies. Just use Sourcery.
-2. Support singleton dependencies. Make the optional and not the default. 
-3. Make it easy to unit test the dependency graph. Because we cannot prove at compile-time our dependency graph is complete, make it unit testable to become confident in it.
-4. Add a dependency to our graph with as little work as possible. Focus on writing the dependencies, not maintaining a graph. 
-5. Thread safe. Get dependencies from any thread, safely. 
-6. Keep things flexible. If you need to manually write the code to construct your dependency instead of having Sourcery generate the construction automatically, we give you that option. 
-
-*Note: It is not a goal of this project to support circular dependencies. The unit tests against your graph should find circular dependencies for you so you can then fix them. If you have a circular dependency, it might be a sign to refactor your code. If you need circular dependencies, follow the "set dependency by property" strategy outlined in the DI framework, [Swinject](https://github.com/Swinject/Swinject/blob/966cc2f0db1637f535ed004d1a10ea041f6e68b5/Documentation/CircularDependencies.md)*
+*Note: It is not a goal of this project to support circular dependencies. Adding a unit test against your graph should find circular dependencies for you so you can then fix them. If you have a circular dependency, it might be a sign to refactor your code, not use a different tool. If you need more help, follow the "set dependency by property" strategy outlined in the DI framework, [Swinject documentation](https://github.com/Swinject/Swinject/blob/966cc2f0db1637f535ed004d1a10ea041f6e68b5/Documentation/CircularDependencies.md)*
 
 ## Installation
 
-* Install and configure Sourcery in your iOS project. 
+* Install and configure [Sourcery](https://github.com/krzysztofzablocki/Sourcery) in your project. 
 * Manually download the `AutoDependencyInjection.stencil` file found in this repository. Put the template file in with your other Sourcery templates. 
-* This is optional, but **highly** recommended. Make a unit test for your dependency graph:
+* This is optional, but **highly** recommended. Make a unit test in your project to test your dependency graph:
 ```swift
 import Foundation
 @testable import YourApp
@@ -39,21 +32,25 @@ class DiTests: XCTestCase {
 
     func testDependencyGraphComplete() {
         for dependency in Dependency.allCases {
-            XCTAssertNotNil(DI.shared.inject(dependency), "Dependency: \(dependency) not able to resolve in dependency graph")
+            XCTAssertNotNil(DI.shared.inject(dependency), "Dependency: \(dependency) not able to resolve in dependency graph. Maybe you're using the Sourcery template incorrectly or there is a circular dependency in your graph?")
         }
     }
     
 }
 ```
+This test can help find circular dependencies. 
+
 * Done! Keep reading on how to use this template. 
 
-# Getting started
+# How to add dependencies to graph
 
 If you're used to using Sourcery, you understand the concept of using Sourcery annotations. This project replies on annotations to define how a dependency should be constructed. 
 
-### Define a class as a non-singleton dependency
+### Add a non singleton class
 
 *Note: The instructions below are for using a Swift `class`. If your dependency is something other then a `class`, skip this section.*
+
+Add a comment above your class:
 
 ```swift
 // sourcery: InjectRegister = "OffRoadWheels"
@@ -61,60 +58,62 @@ class OffRoadWheels {
 }
 ```
 
-This will allow you to then get a reference to `OffRoadWheels` from the dependency graph like this:
-
+Run the Sourcery CLI tool and you will now be able to access your new dependency:
 ```swift
-class ViewController: UIViewController {
-    let wheels = DI.shared.offRoadWheels
-    // `wheels` is of type `OffRoadWheels`
-
-    // you can also use this syntax:
-    let wheels: OffRoadWheels = DI.shared.inject(.offRoadWheels)
-    // although, it's not recommended because `inject()` performs a force-cast which could cause a runtime crash of your app. 
-}
+let wheels = DI.shared.offRoadWheels
 ```
 
-If your iOS app relies heavily on protocol based programming to make your code easily testable, define your dependency like this:
+If you plan to use mocking in your tests suite, it's recommended to use a `Protocol`:
 
 ```swift
 protocol Wheels {
+    ...
 }
 
 // sourcery: InjectRegister = "Wheels"
-class OffRoadWheels {
+class OffRoadWheels: Wheels {
+    ...
 }
 ```
 
-This will define the dependency as an abstracted protocol that you can use in your code:
-
+Run the Sourcery CLI tool and you will now be able to access your new dependency:
 ```swift
-class ViewController: UIViewController {
-    let wheels = DI.shared.offRoadWheels
-    // `wheels` is of type `Wheels`
-}
+let wheels = DI.shared.wheels
+// `wheels` is type checked to the Wheels Protocol. 
 ```
 
-### Define a generic class
+### Add a generic class
 
-If you have a generic class:
+If you have a class that uses generics in the constructor:
 
 ```swift
-// sourcery: InjectRegister = "Bar"
-class Car<EngineType: Engine> { 
-}
+class Car<EngineType: Engine> {}
 ```
 
-...the Sourcery DI graph has issues with (1) generating this and (2) overriding this within tests. 
-
-To fix this problem, it's recommended to create a `typealias` to define a more concrete type definition that can then work nicely with the graph:
+You will not be able to add the class to the graph as is. Instead, you must add to the graph specific type definitions. Here is an example: 
 
 ```swift
+// sourcery: InjectRegister = "ElectricCar"
+// sourcery: InjectCustom
 typealias ElectricCar = Car<ElectricEngine>
+
+extension DI {
+    var customElectricCar: ElectricCar {
+        // If your constructor requires dependencies, you can use the graph to provide them:
+        return ElectricCar(DI.shared.battery)
+    }
+}
 ```
 
-Now, read the instructions in this readme on defining a `typealias` in the graph. 
+> `typealias` is the recommended way of doing this. You can add this code to the same file your `Car<>` class is defined. 
 
-### Define a class as a singleton dependency
+Run the Sourcery CLI tool and you will now be able to access your new dependency:
+```swift
+let electricCar = DI.shared.electricCar
+// `electricCar` is type checked to the `ElectricCar` typealias
+```
+
+### Add a singleton class
 
 *Note: The instructions below are for using a Swift `class`. If your dependency is something other then a `class`, skip this section.*
 
@@ -130,18 +129,16 @@ class OffRoadWheels {
 Now, when your code references `OffRoadWheels`, it will get the same shared instance. 
 
 ```swift
-let wheels = DI.shared.offRoadWheels)
+let wheels = DI.shared.offRoadWheels
 let otherInstanceWheels = DI.shared.offRoadWheels
 // `wheels` and `otherInstanceWheels` are the same instance
 ```
 
-### Define a `typealias` or 3rd party dependency 
+### Add a class from a 3rd party
 
-If you need to add a dependency to your graph that is not a class, or, you need to inject some 3rd party code that you didn't write such as `UserDefaults`, here is how you will do so:
+*Note: If you need your 3rd party dependency to be a singleton, this is not supported by this project, sorry. View the generated DI graph .swift file to see examples of how this stencil creates singletons. You can then use `extension DI` to add functionality to the graph to add your singleton.*
 
-*Note: If you need your custom dependency to be a singleton, that is up to you to perform. View the generated DI graph to see examples of how this stencil creates singletons.*
-
-##### 3rd party dependencies 
+In order to add classes from 3rd parties, we will extend our dependency injection graph. Let's add the iOS SDK `UserDefaults` to our graph. Here is the syntax to do that. 
 
 ```swift
 // sourcery: InjectRegister = "UserDefaults"
@@ -149,15 +146,23 @@ If you need to add a dependency to your graph that is not a class, or, you need 
 extension UserDefaults {}
 
 extension DI {
-    var userDefaults: UserDefaults {
+    var customUserDefaults: UserDefaults {
         return UserDefaults.standard
     }
 }
 ```
 
-When you define 3rd party dependencies, you may encounter build errors when trying to compile your app because the generated DI graph cannot find a module. You can fix this issue in multiple ways. 
+Run the Sourcery CLI tool and you will now be able to access your new dependency:
+```swift
+let userDefaults = DI.shared.userDefaults
+// `electricCar` is type checked to the `ElectricCar` typealias
+```
 
-1. The quick way. 
+*Note: Yes, this syntax is not the most elegant code in the world but it's a limitation to Sourcery. This is how we can get it done.*
+
+This technique above has some downfalls...Your graph .swift file might have compile-time errors because the file needs an `import` statement to find your 3rd party library. There are 2 ways to fix this:
+
+1. The quick way. (not recommended but, quick)
 
 Open up the `AutoDependencyInjection.stencil` file you copied into your project and add another `import` statement to the file:
 
@@ -174,7 +179,7 @@ Pros:
 Cons:
 * The next time there is an update to the stencil file in this project, you need to remember what frameworks you added. 
 
-2. `typealias`
+2. `typealias` (recommended but adds a little boilerplate code to your project)
 
 Create `typealias` definitions to alias the 3rd party definitions. 
 
@@ -188,7 +193,7 @@ import KeychainAccess
 extension KeychainAccess {}
 
 extension DI {
-    var keychainAccess: KeychainAccess {
+    var customKeychainAccess: KeychainAccess {
         return Keychain(service: "com.example.github-token")
     }
 }
@@ -205,7 +210,7 @@ typealias Keychain = KeychainAccess
 extension Keychain {}
 
 extension DI {
-    var keychain: Keychain {
+    var customKeychain: Keychain {
         return Keychain(service: "com.example.github-token")
     }
 }
@@ -217,7 +222,7 @@ Cons:
 * More code required to create a `typealias`. 
 * If you decide in the future to no longer use the `KeychainAccess` framework, it would require you to edit lots of your code. 
 
-3. Wrapper 
+3. Wrapper (requires most boilerplate but allows your 3rd party dependencies to be testable)
 
 If you wanted to make your code even more maintainable long-term and making your code more testable, you could also create a wrapper:
 
@@ -247,7 +252,7 @@ Pros:
 Cons:
 * Requires the most boilerplate code. 
 
-##### `typealias`
+##### Add a `typealias`
 
 Typealias are a great way to define dependencies that are *generic*. 
 
@@ -258,7 +263,7 @@ typealias GitHubMoyaProvider = MoyaProvider<GitHubService>
 extension GitHubMoyaProvider {}
 
 extension DI {
-    var gitHubMoyaProvider: GitHubMoyaProvider {        
+    var customerGitHubMoyaProvider: GitHubMoyaProvider {        
         return MoyaProvider<GitHubService>()
     }
 }
