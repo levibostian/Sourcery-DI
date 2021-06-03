@@ -17,11 +17,11 @@ enum Dependency: CaseIterable {
 
 {# When an InjectCustom exists, we don't want it to be responsible for returning an override. This function exists for all injectors to get overriden property before calling the base #}
 {% macro overrideGetterProperty class %}
-private var _{{ class|lowerFirstLetter }}: {{ class }} {    
+var {{ class|lowerFirstLetter }}: {{ class }} {    
     if let overridenDep = self.overrides[.{{ class|lowerFirstLetter }}] {
         return overridenDep as! {{ class }}
     }
-    return self.{{ class|lowerFirstLetter }}
+    return self.new{{ class }}
 }
 {% endmacro %}
 
@@ -54,7 +54,7 @@ class DI {
     func inject<T>(_ dep: Dependency) -> T {                            
         switch dep {
             {% for dep in types.all where dep|annotated:"InjectRegister" %}
-            case .{{ dep.annotations["InjectRegister"]|lowerFirstLetter }}: return self._{{ dep.annotations["InjectRegister"]|lowerFirstLetter }} as! T 
+            case .{{ dep.annotations["InjectRegister"]|lowerFirstLetter }}: return self.{{ dep.annotations["InjectRegister"]|lowerFirstLetter }} as! T 
             {% endfor %}                
         }
     }
@@ -92,7 +92,7 @@ class DI {
     {% else %}
     // {{ class }}
     {% call overrideGetterProperty class %}
-    var {{ class|lowerFirstLetter }}: {{ class }} {    
+    var new{{ class }}: {{ class }} {    
         return {{ dep.name}}({% for initializer in dep.initializers %}{% if not initializer.isConvenienceInitializer %}{% for param in initializer.parameters %}{{ param.name }}: self._{{ param.typeName|lowerFirstLetter }}{% if not forloop.last%}, {% endif %}{% endfor %}{% endif %}{% endfor %})
     }
     {% endif %}

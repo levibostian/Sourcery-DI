@@ -65,8 +65,12 @@ This will allow you to then get a reference to `OffRoadWheels` from the dependen
 
 ```swift
 class ViewController: UIViewController {
-    let wheels = Di.shared.inject(.offRoadWheels)
+    let wheels = DI.shared.offRoadWheels
     // `wheels` is of type `OffRoadWheels`
+
+    // you can also use this syntax:
+    let wheels: OffRoadWheels = DI.shared.inject(.offRoadWheels)
+    // although, it's not recommended because `inject()` performs a force-cast which could cause a runtime crash of your app. 
 }
 ```
 
@@ -85,7 +89,7 @@ This will define the dependency as an abstracted protocol that you can use in yo
 
 ```swift
 class ViewController: UIViewController {
-    let wheels = Di.shared.inject(.offRoadWheels)
+    let wheels = DI.shared.offRoadWheels
     // `wheels` is of type `Wheels`
 }
 ```
@@ -126,8 +130,8 @@ class OffRoadWheels {
 Now, when your code references `OffRoadWheels`, it will get the same shared instance. 
 
 ```swift
-let wheels = Di.shared.inject(.offRoadWheels)
-let otherInstanceWheels = Di.shared.inject(.offRoadWheels)
+let wheels = DI.shared.offRoadWheels)
+let otherInstanceWheels = DI.shared.offRoadWheels
 // `wheels` and `otherInstanceWheels` are the same instance
 ```
 
