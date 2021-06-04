@@ -1,3 +1,12 @@
+## [1.0.0] - 2020-06-04
+
+## Added
+- Add strong type properties to graph. 
+BREAKING CHANGE: previous dependencies added to graph using `extension DI {}` will require changing to the new syntax.
+
+## Changed 
+- Remove UI imports
+
 ## [0.1.1] - 2019-12-16
 
 ## Added
