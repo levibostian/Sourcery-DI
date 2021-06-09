@@ -37,16 +37,7 @@ class ViewController: UIViewController {
 }
 ```
 
-5. How do I use this graph in my test suite? 
-```
-let mockOffRoadWheels = // make a mock of OffRoadWheels class 
-DI.shared.override(.offRoadWheels, mockOffRoadWheels) 
-```
-
-Then, when your test function finishes, reset the graph:
-```
-DI.shared.resetOverrides()
-```
+5. How do I use this graph in my test suite? --> https://github.com/levibostian/Sourcery-DI#how-to-use-in-tests
 
 */
 

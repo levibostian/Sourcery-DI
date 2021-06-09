@@ -272,6 +272,20 @@ extension DI {
 
 *Note: Yes, you need to have the blank `extension` as defined above. It's a hack in order to [have Sourcery find your `typealias` annotations](https://github.com/krzysztofzablocki/Sourcery/issues/765). We may not need this in the future. Who knows.*
 
+# How to use in tests? 
+
+```
+let mockOffRoadWheels = // make a mock of OffRoadWheels class 
+
+// Set the mock as the instance to return when someone requests `OffRoadWheels` from the graph. 
+DI.shared.override(.offRoadWheels, mockOffRoadWheels, OffRoadWheels.self) 
+```
+
+Then, when your test function finishes, reset the graph to reset the overrides. 
+```
+DI.shared.resetOverrides()
+```
+
 ## Author
 
 * Levi Bostian - [GitHub](https://github.com/levibostian), [Twitter](https://twitter.com/levibostian), [Website/blog](http://levibostian.com)
